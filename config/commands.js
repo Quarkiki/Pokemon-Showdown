@@ -755,6 +755,7 @@ var commands = exports.commands = {
 			'<br />' +
 			'Room owners (#) can also use:<br />' +
 			'- /roomdesc <em>description</em>: set the room description on the room join page<br />' +
+			'- /rules <em>rules link</em>: set the room rules link seen when using /rules<br />' +
 			'- /roommod, /roomdriver <em>username</em>: appoint a room moderator/driver<br />' +
 			'- /roomdemod, /roomdedriver <em>username</em>: remove a room moderator/driver<br />' +
 			'- /modchat <em>[%/@/#]</em>: set modchat level<br />' +
@@ -773,12 +774,43 @@ var commands = exports.commands = {
 			'</div>');
 	},
 
+	restarthelp: function(target, room, user) {
+		if (room.id === 'lobby' && !this.can('lockdown')) return false;
+		if (!this.canBroadcast()) return;
+		this.sendReplyBox('The server is restarting. Things to know:<br />' +
+			'- We wait a few minutes before restarting so people can finish up their battles<br />' +
+			'- The restart itself will take around 0.6 seconds<br />' +
+			'- Your ladder ranking and teams will not change<br />' +
+			'- We are restarting to update Pokémon Showdown to a newer version' +
+			'</div>');
+	},
+	
 	rule: 'rules',
 	rules: function(target, room, user) {
-		if (!this.canBroadcast()) return;
-		this.sendReplyBox('Please follow the rules:<br />' +
+		if (!target) {
+			if (!this.canBroadcast()) return;
+			var re = /(https?:\/\/(([-\w\.]+)+(:\d+)?(\/([\w/_\.]*(\?\S+)?)?)?))/g;
+			if (!room.rules) return this.sendReplyBox('Please follow the rules:<br />' +
 			'- <a href="http://pokemonshowdown.com/rules">Rules</a><br />' +
 			'</div>');
+			this.sendReplyBox('Please follow the rules:<br />' +
+			'- <a href="http://pokemonshowdown.com/rules">Rules</a><br />' +
+			'- ' + room.rules.replace(re, "<a href=\"$1\">$1</a>") + ' ' + room.title + ' room rules</a><br />' +
+			'</div>');
+			return;
+		}
+		if (!this.can('roommod', null, room)) return false;
+		if (target.length > 40) {
+			return this.sendReply('Error: Room rules link is too long (must be under 40 characters). You can use a URL shortener to shorten the link.');
+		}
+
+		room.rules = target;
+		this.sendReply('(The room rules link is now: '+target+')');
+
+		if (room.chatRoomData) {
+			room.chatRoomData.rules = room.rules;
+			Rooms.global.writeChatRoomData();
+		}
 	},
 
 	faq: function(target, room, user) {
